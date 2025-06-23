@@ -26,8 +26,8 @@ exports.sendCode = async (req, res) => {
     await VerificationCode.create({ email, code, expiresAt });
 
     const result = await resend.emails.send({
-      from: 'WildBox <onboarding@resend.dev>',
-      //from: 'noreply@wildbox-server.onrender.com',
+      //from: 'WildBox <onboarding@resend.dev>',
+      from: 'noreply@studiomeshy.co',
       to: [email],
       subject: "Wildbox Verification",
       html: `Your verification code is: ${code}`
