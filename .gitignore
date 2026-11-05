@@ -22,3 +22,8 @@ node_modules/
 # WebStorm
 #//////////////////////////
 .idea/
+# Secrets and local files
+.env
+.env.*
+!.env.example
+.DS_Store

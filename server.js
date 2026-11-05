@@ -1,21 +1,23 @@
-require("dotenv").config();
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-
-const authRoutes = require("./routes/authRoutes");
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-app.use("/api/auth", authRoutes);
-
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.error("MongoDB Connection Error:", err));
-
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+require('dotenv').config();
+const mongoose = require('mongoose');
+const { Resend } = require('resend');
+const { loadConfig } = require('./lib/config');
+const { createLimiter } = require('./lib/rateLimit');
+const { createAuthController } = require('./controllers/authController');
+const { createApp } = require('./app');
+const User = require('./models/user');
+const VerificationCode = require('./models/verificationCode');
+const RateLimit = require('./models/rateLimit');
+async function start() {
+  const config = loadConfig();
+  await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 10000 });
+  await Promise.all([User.init(), VerificationCode.init(), RateLimit.init()]);
+  const allow = createLimiter(RateLimit, config.otpSecret);
+  const controller = createAuthController({ User, VerificationCode, mailer: new Resend(config.resendApi), config, allow });
+  const server = createApp({ controller, allow, config }).listen(config.port, '0.0.0.0');
+  const stop = () => server.close(() => mongoose.disconnect().finally(() => process.exit(0)));
+  process.once('SIGTERM', stop);
+  process.once('SIGINT', stop);
+}
+if (require.main === module) start().catch(() => { console.error('Startup failed; check configuration and database connectivity'); process.exitCode = 1; });
+module.exports = { start };
